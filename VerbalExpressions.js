@@ -21,9 +21,12 @@ class VerbalExpression extends RegExp {
      */
     constructor() {
         // Call the `RegExp` constructor so that `this` can be used
+        // 笔记： 1. 其实就是 `RegExp('', 'gm')`，即创建一个全局、多行匹配的空正则表达式 `/(?:)/gm`
+        //         在这里，`this` 就等于了 `/(?:)/gm`
         super('', 'gm');
 
         // Variables to hold the expression construction in order
+        // 笔记： 2. `this` 本身是没有下述属性的，这是为了方便记录数据而设定的 “私有属性”
         this._prefixes = '';
         this._source = '';
         this._suffixes = '';
@@ -54,12 +57,16 @@ class VerbalExpression extends RegExp {
 
         // Regular expression to match meta characters
         // https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/regexp
+        // 笔记： 目前看，好像 `/[\].|*?+(){}^$\\:=[]/g` 也能匹配文本中出现的各种元字符
         const toEscape = /([\].|*?+(){}^$\\:=[])/g;
 
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/lastMatch
         const lastMatch = '$&';
 
         // Escape meta characters
+        // 笔记： https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/String/replace
+        // replace 方法的第二个参数是字符串，这个字符串中可以包含一些以 `$` 开头的特殊字符串，
+        // 代表着不同含义的变量，像上面的 `$&` 就表示在 `value` 中单次匹配到字符串
         return value.replace(toEscape, `\\${lastMatch}`);
     }
 
@@ -71,10 +78,12 @@ class VerbalExpression extends RegExp {
      */
     add(value = '') {
         this._source += value;
+        // 笔记： 在这种库中，一个正则表达式由 开头、中间值、结尾组成
         const pattern = this._prefixes + this._source + this._suffixes;
-
+        // 笔记： this.compile 是 Regexp 的 compile 方法，效果和 new RegExp(pattern, this._modifier) 类似
+        // 但是 `.compile` 方法会改变原正则表达式，不过，其为非 ES 标准的方法，在 Android React Native 中就没法用
         this.compile(pattern, this._modifiers);
-
+        // 笔记： 这个库的方法都是返回 this，也就扩展后的正则表达式对象本身
         return this;
     }
 
@@ -109,7 +118,10 @@ class VerbalExpression extends RegExp {
      * @memberof VerbalExpression
      */
     then(value) {
+        //
         value = VerbalExpression.sanitize(value);
+        // 这种方法把 value 加在末尾，并以未捕获分组的形式存在，
+        // 这样一来的话，当再在后面加上 `*`、`+` 时，就能重复匹配，但又不会存储匹配组，提升效率
         return this.add(`(?:${value})`);
     }
 
@@ -485,6 +497,31 @@ class VerbalExpression extends RegExp {
  */
 function VerEx() { // eslint-disable-line no-unused-vars
     const instance = new VerbalExpression();
+    // 笔记：`VerbalExpression` 类上的 `sanitize` 静态方法在实例上也可以使用
     instance.sanitize = VerbalExpression.sanitize;
     return instance;
 }
+
+// 使用示例
+// 笔记： 下面这行语句仅仅是创建了一个 `/(?:)/gm` 的正则表达式，不同的是它和它的原型带有一系列的方法，主要也就是这些方法在起作用
+const regular = VerEx()
+
+const stringToEscape = '(http://example.com?arg=foo+bar)';
+// => '\(http:\/\/example.com\?arg\=foo\+bar\)'
+// 笔记： `sanitize` 是用来将给定字符串内的元字符前面加上转义符号的，使其能够被 this.compile 方法接收
+// this.compile 方法和 new RegExp 方法一样，第一个参数是字符串，且字符串内不允许含有元字符，
+// 元字符要做为匹配项生效，就必须在元字符前面加上转义符号，否则会报错
+console.log(regular.sanitize(stringToEscape));
+
+// 笔记： `add` 方法用来在原基础上追加正则表达式
+regular.add('(foo)?(?:bar)*');
+console.log(regular); // => /(foo)?(?:bar)*/gm
+
+// 笔记： 以下的规则旨在用一系列方法语义化的给正则表达式添砖加瓦，使其变成一个含义丰富的正则表达式
+// `find` 方法是 `then` 方法的别名，比 `then` 方法更加的语义化
+// `then` 方法
+const expr1 = VerEx().find('apple');
+console.log(expr1.test('pineapple')); // => true
+
+const expr2 = VerEx().startOfLine().find('apple');
+console.log(expr2.test('pineapple')); // => false

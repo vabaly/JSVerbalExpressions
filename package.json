@@ -34,7 +34,7 @@
   "bugs": {
     "url": "https://github.com/VerbalExpressions/JSVerbalExpressions/issues"
   },
-  "main": "dist/verbalexpressions.js",
+  "main": "VerbalExpressions.js",
   "license": "MIT",
   "scripts": {
     "test": "grunt test",
